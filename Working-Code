@@ -1,0 +1,181 @@
+# Problem definition
+
+# Min F_1 = authentic1(x_0, x_1) – authentic2(x_0, x_1)
+# Max F_2 = authentic1(x_0, x_1) – suspected(x_0, x_1)
+
+# x_0 : input voltage               [0,50]
+# x_1 : simulation temperature      [0,200]
+
+##########################################################################################################
+# imports
+
+import numpy as np
+from pymoo.util.misc import stack
+from pymoo.model.problem import Problem
+from pymoo.factory import get_termination
+from pymoo.optimize import minimize
+from pymoo.algorithms.nsga2 import NSGA2
+from pymoo.factory import get_sampling, get_crossover, get_mutation
+from pymoo.visualization.scatter import Scatter
+from time import strftime
+from random import randrange
+
+
+##########################################################################################################
+# Define the optimization problem
+
+class CounterfeitProblem(Problem):
+    def __init__(self):
+        super().__init__(n_var=2,
+                         n_obj=2,
+                         xl=np.array([0, 0]),
+                         xu=np.array([200, 50]),
+                         elementwise_evaluation=True)
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        # Simulate each chip at the same input voltage (x[:0]) and temperature (x[:1])
+        a1 = sim(x[0], x[1], "a1")
+        a2 = sim(x[0], x[1], "a2")
+        s = sim(x[0], x[1], "s")
+
+        # Minimum difference between a1 and a2
+        f1 = abs(a1 - a2)
+        # Maximum difference between a1 and s
+        f2 = - abs(a1 - s)
+
+        out["F"] = np.column_stack([f1, f2])
+
+    def _calc_pareto_front(self, *args, **kwargs):
+        return func_pf(**kwargs)
+
+    def _calc_pareto_set(self, *args, **kwargs):
+        return func_ps(**kwargs)
+
+
+##########################################################################################################
+# Define the simulation process
+
+def sim(voltage, temp, chip):
+    # Display voltage, temp, and chip:
+    print("Voltage: " + str(voltage), end="\t")
+    print("Temperature: " + str(temp), end="\t")
+    print("Chip: " + chip)
+
+    valid = False
+    output = 0
+    # Continue to prompt until output entered is valid
+    while not valid:
+        # Prompt for output values
+        output = input("Enter the voltage output: ")
+        # Check that output is valid
+        if output.isnumeric():
+            valid = True
+    # save inputs and output to a text file
+    f = open("OptEntryData\\" + filename1 + '.txt', 'a')
+    f.write("Input Voltage: " + str(voltage) + "\t"
+            + "Input Temp: " + str(temp) + "\t"
+            + "Chip: " + chip + "\t"
+            + "Output Voltage: " + output + "\n")
+    f.close()
+
+    # return the voltage output as a floating point number
+    return float(output)
+
+
+##########################################################################################################
+# Pareto Front and Pareto Set
+
+def func_pf(flatten=True, **kwargs):
+    f1_a = np.linspace(0.1 ** 2, 0.4 ** 2, 100)
+    f2_a = (np.sqrt(f1_a) - 1) ** 2
+
+    f1_b = np.linspace(0.6 ** 2, 0.9 ** 2, 100)
+    f2_b = (np.sqrt(f1_b) - 1) ** 2
+
+    a, b = np.column_stack([f1_a, f2_a]), np.column_stack([f1_b, f2_b])
+    return stack(a, b, flatten=flatten)
+
+
+def func_ps(flatten=True, **kwargs):
+    x1_a = np.linspace(0.1, 0.4, 50)
+    x1_b = np.linspace(0.6, 0.9, 50)
+    x2 = np.zeros(50)
+
+    a, b = np.column_stack([x1_a, x2]), np.column_stack([x1_b, x2])
+    return stack(a, b, flatten=flatten)
+
+
+##########################################################################################################
+# Run the optimization
+
+# Create file with the title being date/time
+filename1 = strftime("%Y%m%d-%H%M%S")
+inout_file = open("OptEntryData\\" + filename1 + '.txt', 'x')
+inout_file.close()
+
+# Get seed from user, or generate random seed
+user_ans = input("Manually enter seed (y/n): ")
+if user_ans[0].lower() == "y":
+    # Get user seed, checking for valid input
+    user_s = ""
+    while not user_s.isdigit():
+        user_s = input("Seed: ")
+    s = int(user_s)
+else:
+    # Generate "random" seed
+    s = randrange(100)
+
+# Save seed to text file:
+f = open("OptEntryData\\" + filename1 + '.txt', 'a')
+f.write("Seed: " + str(s) + "\n")
+f.close()
+
+# Instantiate the problem
+problem = CounterfeitProblem()
+
+# Instantiate the genetic algorithm
+algorithm = NSGA2(
+    pop_size=5,
+    n_offsprings=2,
+    sampling=get_sampling("int_random"),
+    crossover=get_crossover("int_sbx", prob=0.9, eta=15),
+    mutation=get_mutation("int_pm", eta=20),
+    eliminate_duplicates=True)
+
+# Instantiate the termination clause
+termination = get_termination("n_gen", 15)  # 15 generations
+
+# Run the optimization
+res = minimize(problem,
+               algorithm,
+               termination,
+               seed=s,
+               save_history=True,
+               verbose=True)
+
+# Get the pareto-set and pareto-front for plotting
+ps = problem.pareto_set(use_cache=False, flatten=False)
+pf = problem.pareto_front(use_cache=False, flatten=False)
+
+# Design Space
+plot = Scatter(title = "Design Space", axis_labels="x")
+plot.add(res.X, s=30, facecolors='none', edgecolors='r')
+if ps is not None:
+    plot.add(ps, plot_type="line", color="black", alpha=0.7)
+plot.do()
+plot.apply(lambda ax: ax.set_xlim(-0.5, 1.5))
+plot.apply(lambda ax: ax.set_ylim(-2, 2))
+plot.show()
+
+# Objective Space
+plot = Scatter(title = "Objective Space")
+plot.add(res.F)
+if pf is not None:
+    plot.add(pf, plot_type="line", color="black", alpha=0.7)
+plot.show()
+
+
+##########################################################################################################
+# To Do
+# Verify user entry for correct data type
+
