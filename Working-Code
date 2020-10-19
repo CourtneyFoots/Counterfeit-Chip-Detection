@@ -3,8 +3,14 @@
 # Min F_1 = authentic1(x_0, x_1) – authentic2(x_0, x_1)
 # Max F_2 = authentic1(x_0, x_1) – suspected(x_0, x_1)
 
-# x_0 : input voltage               [0,50]
-# x_1 : simulation temperature      [0,200]
+# x_0 : input voltage               0 - 40 V
+# x_1 : simulation temperature      0 - 50 C
+
+# Global Variables
+MIN_VOLTAGE = 0.1
+MAX_VOLTAGE = 40
+MIN_TEMP = 1
+MAX_TEMP = 50
 
 ##########################################################################################################
 # imports
@@ -20,16 +26,16 @@ from pymoo.visualization.scatter import Scatter
 from time import strftime
 from random import randrange
 
-
 ##########################################################################################################
 # Define the optimization problem
+
 
 class CounterfeitProblem(Problem):
     def __init__(self):
         super().__init__(n_var=2,
                          n_obj=2,
-                         xl=np.array([0, 0]),
-                         xu=np.array([200, 50]),
+                         xl=np.array([MIN_VOLTAGE, MIN_TEMP]),
+                         xu=np.array([MAX_VOLTAGE, MAX_TEMP]),
                          elementwise_evaluation=True)
 
     def _evaluate(self, x, out, *args, **kwargs):
@@ -68,8 +74,12 @@ def sim(voltage, temp, chip):
         # Prompt for output values
         output = input("Enter the voltage output: ")
         # Check that output is valid
-        if output.isnumeric():
+        try:
+            num_output = float(output)
             valid = True
+        except ValueError:
+            print("Invalid input.")
+    print()
     # save inputs and output to a text file
     f = open("OptEntryData\\" + filename1 + '.txt', 'a')
     f.write("Input Voltage: " + str(voltage) + "\t"
@@ -143,7 +153,7 @@ algorithm = NSGA2(
     eliminate_duplicates=True)
 
 # Instantiate the termination clause
-termination = get_termination("n_gen", 15)  # 15 generations
+termination = get_termination("n_gen", 20)  # 20 generations
 
 # Run the optimization
 res = minimize(problem,
@@ -158,7 +168,7 @@ ps = problem.pareto_set(use_cache=False, flatten=False)
 pf = problem.pareto_front(use_cache=False, flatten=False)
 
 # Design Space
-plot = Scatter(title = "Design Space", axis_labels="x")
+plot = Scatter(title="Design Space", axis_labels="x")
 plot.add(res.X, s=30, facecolors='none', edgecolors='r')
 if ps is not None:
     plot.add(ps, plot_type="line", color="black", alpha=0.7)
@@ -168,14 +178,10 @@ plot.apply(lambda ax: ax.set_ylim(-2, 2))
 plot.show()
 
 # Objective Space
-plot = Scatter(title = "Objective Space")
+plot = Scatter(title="Objective Space")
 plot.add(res.F)
 if pf is not None:
     plot.add(pf, plot_type="line", color="black", alpha=0.7)
 plot.show()
 
-
 ##########################################################################################################
-# To Do
-# Verify user entry for correct data type
-
