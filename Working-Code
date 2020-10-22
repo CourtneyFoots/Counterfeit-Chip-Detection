@@ -6,11 +6,11 @@
 # x_0 : input voltage               0 - 40 V
 # x_1 : simulation temperature      0 - 50 C
 
-# Global Variables
-MIN_VOLTAGE = 0.1
-MAX_VOLTAGE = 40
-MIN_TEMP = 1
-MAX_TEMP = 50
+# Default Variables
+min_voltage = 0.1
+max_voltage = 40
+min_temp = 1
+max_temp = 50
 
 ##########################################################################################################
 # imports
@@ -34,8 +34,8 @@ class CounterfeitProblem(Problem):
     def __init__(self):
         super().__init__(n_var=2,
                          n_obj=2,
-                         xl=np.array([MIN_VOLTAGE, MIN_TEMP]),
-                         xu=np.array([MAX_VOLTAGE, MAX_TEMP]),
+                         xl=np.array([min_voltage, min_temp]),
+                         xu=np.array([max_voltage, max_temp]),
                          elementwise_evaluation=True)
 
     def _evaluate(self, x, out, *args, **kwargs):
@@ -122,6 +122,60 @@ def func_ps(flatten=True, **kwargs):
 filename1 = strftime("%Y%m%d-%H%M%S")
 inout_file = open("OptEntryData\\" + filename1 + '.txt', 'x')
 inout_file.close()
+
+
+# Ask user if they want to go with the defaults or
+# Set it themselves
+user_temp = input("Default Values: \n\tMIN VOLTAGE: " + str(min_voltage) +
+                  "\n\tMAX VOLTAGE: " + str(max_voltage) +
+                  "\n\tMIN TEMP: " + str(min_temp) +
+                  "\n\tMAX TEMP: " + str(max_temp) +
+                  "\n Do you want to change the default values? (y/n): ")
+
+if not user_temp == "" and user_temp[0].lower() == "y":
+    user_min_volt = input("New Min Voltage: ")
+    is_valid = False
+    while not is_valid:
+        try:
+            float(user_min_volt)
+        except ValueError:
+            user_min_volt = input("New Min Voltage: ")
+        else:
+            is_valid = True
+    min_voltage = user_min_volt
+
+    user_max_volt = input("New Maximum Voltage: ")
+    is_valid = False
+    while not is_valid:
+        try:
+            float(user_max_volt)
+        except ValueError:
+            user_max_volt = input("New Maximum Voltage: ")
+        else:
+            is_valid = True
+    max_voltage = user_max_volt
+
+    user_min_temp = input("New Min Temp: ")
+    is_valid = False
+    while not is_valid:
+        try:
+            float(user_min_temp)
+        except ValueError:
+            user_min_temp = input("New Min Temp: ")
+        else:
+            is_valid = True
+    min_temp = user_min_temp
+
+    user_max_temp = input("New Maximum Temp: ")
+    is_valid = False
+    while not is_valid:
+        try:
+            float(user_max_temp)
+        except ValueError:
+            user_max_temp = input("New Maximum Temp: ")
+        else:
+            is_valid = True
+    max_temp = user_max_temp
 
 # Get seed from user, or generate random seed
 user_ans = input("Manually enter seed (y/n): ")
